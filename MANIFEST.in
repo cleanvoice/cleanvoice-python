@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include pyproject.toml
+recursive-include src/cleanvoice *.py
+recursive-include tests *.py
+recursive-include examples *.py
+exclude tests/__pycache__/*
+exclude src/cleanvoice/__pycache__/*
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *~
+global-exclude .DS_Store
