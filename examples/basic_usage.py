@@ -1,32 +1,44 @@
-"""Basic usage example for Cleanvoice Python SDK."""
+"""Basic usage examples for the Cleanvoice Python SDK."""
 
-from cleanvoice import Cleanvoice
+from cleanvoice import AsyncCleanvoice, Cleanvoice
 
-def main():
-    # Initialize SDK with your API key
-    cv = Cleanvoice({
-        'api_key': 'your-api-key-here'  # Replace with your actual API key
-    })
-    
-    # Basic audio processing
-    print("Processing audio file...")
-    
-    result = cv.process(
-        "https://example.com/sample-audio.mp3",  # Replace with your audio URL
-        {
-            'fillers': True,        # Remove filler sounds
-            'normalize': True,      # Normalize audio levels
-            'remove_noise': True,   # Remove background noise
-            'transcription': True,  # Generate transcript
-        }
+
+def sync_example() -> None:
+    """Run a simple synchronous processing flow."""
+    client = Cleanvoice.from_env()
+
+    result = client.process(
+        "https://example.com/sample-audio.mp3",
+        fillers=True,
+        normalize=True,
+        remove_noise=True,
+        studio_sound=True,
+        transcription=True,
+        output_path="processed_sync.wav",
     )
-    
-    print(f"✅ Processing complete!")
-    print(f"📁 Download URL: {result.audio.url}")
-    print(f"📊 Statistics: {result.audio.statistics}")
-    
+
+    print("Sync processing complete")
+    print(f"Download URL: {result.audio.url}")
+    print(f"Saved locally to: {result.audio.local_path}")
+
     if result.transcript:
-        print(f"📝 Transcript: {result.transcript.text[:100]}...")
+        print(f"Transcript preview: {result.transcript.text[:120]}...")
+
+
+async def async_example() -> None:
+    """Run the same flow with the async client."""
+    async with AsyncCleanvoice.from_env() as client:
+        result = await client.process(
+            "https://example.com/sample-audio.mp3",
+            normalize=True,
+            studio_sound=True,
+            summarize=True,
+            output_path="processed_async.wav",
+        )
+
+    print("Async processing complete")
+    print(f"Saved locally to: {result.audio.local_path}")
+
 
 if __name__ == "__main__":
-    main()
+    sync_example()

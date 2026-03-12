@@ -5,9 +5,7 @@ from cleanvoice import Cleanvoice
 
 def main():
     # Initialize SDK
-    cv = Cleanvoice({
-        'api_key': 'your-api-key-here'
-    })
+    cv = Cleanvoice.from_env()
     
     # List of audio files to process
     audio_files = [
@@ -16,21 +14,18 @@ def main():
         "https://example.com/podcast3.mp3",
     ]
     
-    # Configuration for all files
-    config = {
-        'fillers': True,
-        'normalize': True,
-        'transcription': True,
-        'summarize': True,
-    }
-    
     print(f"Starting batch processing of {len(audio_files)} files...")
     
     # Create all edit jobs
     edit_ids = []
     for i, file_url in enumerate(audio_files):
         print(f"Creating edit job {i+1}/{len(audio_files)}...")
-        edit_id = cv.create_edit(file_url, config)
+        edit_id = cv.create_edit(
+            file_url,
+            fillers=True,
+            normalize=True,
+            summarize=True,
+        )
         edit_ids.append((edit_id, file_url))
     
     print(f"Created {len(edit_ids)} edit jobs. Polling for completion...")

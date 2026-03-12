@@ -1,44 +1,44 @@
-"""Video processing example using PyAV without ffmpeg."""
+"""Focused example for video inputs and automatic video detection."""
 
-from cleanvoice import Cleanvoice, get_video_info, extract_audio_from_video
+from cleanvoice import Cleanvoice
 
-def main():
-    # Initialize SDK
-    cv = Cleanvoice({
-        'api_key': 'your-api-key-here'
-    })
-    
-    video_url = "https://example.com/sample-video.mp4"
-    
-    # Get video information (if you have a local file)
-    # info = get_video_info('path/to/video.mp4')
-    # print(f"Video info: {info.duration}s, {info.width}x{info.height}")
-    
-    # Process video file
+
+def main() -> None:
+    client = Cleanvoice.from_env()
+    video_url = "https://download.samplelib.com/mp4/sample-5s.mp4"
+
     print("Processing video file...")
-    
-    def progress_callback(data):
-        if 'result' in data and data['result'] and 'done' in data['result']:
-            progress = data['result']['done']
-            print(f"Progress: {progress}%")
-    
-    result = cv.process(
-        video_url,
-        {
-            'video': True,          # Process as video
-            'fillers': True,        # Remove fillers from audio
-            'normalize': True,      # Normalize audio
-            'transcription': True,  # Generate transcript
-            'export_format': 'mp3', # Export audio as MP3
-        },
-        progress_callback=progress_callback
-    )
-    
-    print(f"✅ Video processing complete!")
-    print(f"🎵 Audio download: {result.audio.url}")
-    
+    print("The SDK will auto-detect the .mp4 input and warn before forcing video=True.")
+
+    def progress_callback(data) -> None:
+        result = data.get("result")
+        done = result.get("done") if isinstance(result, dict) else None
+        if done is not None:
+            print(f"Progress: {done}%")
+        else:
+            print(f"Status: {data.get('status')}")
+
+    try:
+        result = client.process(
+            video_url,
+            studio_sound=True,
+            remove_noise=True,
+            transcription=True,
+            summarize=True,
+            output_path="processed_video.mp4",
+            progress_callback=progress_callback,
+        )
+    finally:
+        client.close()
+
+    print("Video processing complete")
+    print(f"Returned media type: {'video' if result.is_video else 'audio'}")
+    print(f"Processed file: {result.media.url}")
+    print(f"Saved locally: {result.media.local_path}")
+
     if result.transcript:
-        print(f"📝 Transcript: {result.transcript.text[:100]}...")
+        print(f"Transcript preview: {result.transcript.text[:100]}...")
+
 
 if __name__ == "__main__":
     main()

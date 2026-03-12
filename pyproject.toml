@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cleanvoice-sdk"
-version = "1.0.0"
+version = "2.0.0"
 description = "Official Python SDK for Cleanvoice AI audio processing"
 readme = "README.md"
 license = {text = "MIT"}
@@ -28,23 +28,14 @@ classifiers = [
 requires-python = ">=3.8"
 dependencies = [
     "requests>=2.25.0",
+    "httpx>=0.27.0",
     "pydantic>=2.0.0",
     "typing-extensions>=4.0.0",
+    "numpy>=1.24.0",
     "soundfile>=0.12.0",
     "librosa>=0.10.0",
     "mutagen>=1.45.0",
     "av>=10.0.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=22.0.0",
-    "isort>=5.10.0",
-    "flake8>=4.0.0",
-    "mypy>=1.0.0",
-    "types-requests>=2.25.0",
 ]
 
 [project.urls]
@@ -58,6 +49,9 @@ where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.setuptools.package-data]
+"cleanvoice" = ["py.typed"]
 
 [tool.black]
 line-length = 88
@@ -100,3 +94,9 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that hit the live API or external services",
+    "slow: marks tests that take longer to run",
+]

@@ -36,6 +36,7 @@ MANIFEST
 # Virtual environments
 .env
 .venv
+.venv-numpy/
 env/
 venv/
 ENV/
@@ -54,4 +55,12 @@ venv.bak/
 htmlcov/
 
 # Jupyter Notebook
-.ipynb_checkpoints 
+.ipynb_checkpoints
+test.ipynb
+
+# Manual SDK run outputs
+results_test/
+
+# Local testing artifacts
+testfiles/
+*_clean.mp3

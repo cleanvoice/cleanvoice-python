@@ -1,33 +1,24 @@
 # Cleanvoice Python SDK
 
-Official Python SDK for [Cleanvoice AI](https://cleanvoice.ai) - AI-powered audio processing and enhancement.
+Python SDK for the [Cleanvoice API](https://cleanvoice.ai). Use it to submit media, poll edit jobs, and download processed results from Python applications and backend services.
 
 [![PyPI version](https://badge.fury.io/py/cleanvoice-sdk.svg)](https://badge.fury.io/py/cleanvoice-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
 
-- 🎵 **Audio Processing**: Remove fillers, background noise, long silences, and more
-- 📹 **Video Support**: Process audio tracks from video files without ffmpeg
-- 📝 **Transcription**: Convert speech to text with high accuracy
-- 📊 **Summarization**: Generate summaries, chapters, and key learnings
-- 🔧 **Type Safe**: Full type hints with Pydantic models
-- ⚡ **Developer Friendly**: Simple, intuitive API design
-- 🔄 **Async Support**: Modern async/await patterns
-- 🎛️ **Extensible**: Comprehensive configuration options
-- 📦 **No FFmpeg Required**: Built-in audio/video handling with librosa, soundfile, and PyAV
+- Audio and video processing requests
+- Transcription, summarization, and social-content options
+- Sync and async clients with a matching high-level API
+- Typed request and response models
+- Automatic retries for transient network and service failures
+- Built-in support for local files, in-memory audio, NumPy helpers, and video utilities
 
 ## Installation
 
+Install the SDK:
 ```bash
 pip install cleanvoice-sdk
-```
-
-### Optional Dependencies
-
-For development:
-```bash
-pip install cleanvoice-sdk[dev]
 ```
 
 ## Quick Start
@@ -35,22 +26,55 @@ pip install cleanvoice-sdk[dev]
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key-here'})
+client = Cleanvoice.from_env()
 
-# Process audio with AI
-result = cv.process(
+result = client.process(
     "https://example.com/podcast.mp3",
-    {
-        'fillers': True,
-        'normalize': True,
-        'transcription': True,
-        'summarize': True
-    }
+    fillers=True,
+    normalize=True,
+    studio_sound=True,
+    summarize=True,
+    output_path="podcast_clean.wav",
 )
 
 print(f"Processed audio: {result.audio.url}")
+print(f"Saved locally to: {result.audio.local_path}")
 print(f"Summary: {result.transcript.summary}")
 ```
+
+## Common Usage Patterns
+
+Most integrations fit one of these three patterns:
+
+1. Process and save in one call:
+
+```python
+result = client.process(
+    "local_or_remote_media",
+    normalize=True,
+    studio_sound=True,
+    output_path="cleaned_output.wav",
+)
+```
+
+2. Process first, download later:
+
+```python
+result = client.process("local_or_remote_media", normalize=True)
+saved_path = result.audio.download("cleaned_output.wav")
+```
+
+3. Use async in web backends or workers:
+
+```python
+result = await async_client.process(
+    "local_or_remote_media",
+    normalize=True,
+    output_path="cleaned_output.wav",
+)
+```
+
+In practice, `output_path=...` is the lowest-friction option for backend jobs because the SDK uploads, waits, downloads, and returns a ready-to-use local path in `result.audio.local_path`.
 
 ## Authentication
 
@@ -59,89 +83,217 @@ Get your API key from the [Cleanvoice Dashboard](https://app.cleanvoice.ai/setti
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({
-    'api_key': 'your-api-key-here',
-    # Optional: custom base URL
-    'base_url': 'https://api.cleanvoice.ai/v2',
-    # Optional: request timeout in seconds
-    'timeout': 60
-})
+client = Cleanvoice(
+    api_key="your-api-key-here",
+    base_url="https://api.cleanvoice.ai/v2",  # optional
+    timeout=60,  # optional
+)
 ```
+
+Or set environment variables and use:
+
+```python
+from cleanvoice import Cleanvoice
+
+client = Cleanvoice.from_env()
+```
+
+## Network Resilience
+
+The client automatically retries brief transient failures such as connection resets, connect/read timeouts on safe requests, and temporary HTTP responses like `429`, `502`, `503`, and `504`.
+
+This is designed to absorb short backend restart windows without immediately failing common flows such as:
+
+- `check_auth()`
+- `create_edit(...)`
+- `get_edit(...)`
+- `process(...)` while polling for completion
+
+Retries are intentionally conservative for edit creation so short backend restarts do not immediately fail a request or duplicate work.
 
 ## API Reference
 
-### `process(file_input, config, progress_callback=None)`
+### `process(file_input, config=None, progress_callback=None, *, output_path=None, download=False, template_id=None, upload_type=None, **options)`
 
 Process an audio or video file with AI enhancement.
 
 **Parameters:**
-- `file_input` (str): URL to audio/video file
-- `config` (ProcessingConfig or dict): Processing options
+- `file_input` (`str` or `(audio_array, sample_rate)`): URL, local media path, or an in-memory audio array paired with its sample rate
+- `config` (`ProcessingConfig` or `dict`, optional): Processing options
 - `progress_callback` (callable, optional): Callback function for progress updates
+- `output_path` (str, optional): Save the finished audio locally as part of the task
+- `download` (bool, optional): Download the finished audio even when `output_path` is omitted
+- `template_id` (int, optional): Apply a saved Cleanvoice template
+- `upload_type` (str, optional): Forward a backend-specific upload type hint with the edit request
+- `**options`: Direct config kwargs such as `normalize=True` or `studio_sound=True`
 
 **Returns:** `ProcessResult`
 
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+client = Cleanvoice.from_env()
 
 def progress_callback(data):
     print(f"Status: {data['status']}, Progress: {data.get('result', {}).get('done', 0)}%")
 
-result = cv.process(
+result = client.process(
     "https://example.com/audio.mp3",
-    {
-        # Audio Enhancement
-        'fillers': True,           # Remove filler sounds (um, uh, etc.)
-        'stutters': True,          # Remove stutters
-        'long_silences': True,     # Remove long silences
-        'mouth_sounds': True,      # Remove mouth sounds
-        'breath': True,            # Reduce breath sounds
-        'remove_noise': True,      # Remove background noise
-        'normalize': True,         # Normalize audio levels
-        
-        # Advanced Options
-        'mute_lufs': -80,         # Mute threshold (negative number)
-        'target_lufs': -16,       # Target loudness level
-        'export_format': 'mp3',   # Output format: auto, mp3, wav, flac, m4a
-        
-        # AI Features
-        'transcription': True,     # Generate transcript
-        'summarize': True,         # Generate summary (requires transcription)
-        'social_content': True,    # Optimize for social media
-        
-        # Video
-        'video': False,           # Set to True for video files (auto-detected)
-        
-        # Multi-track
-        'merge': False,           # Merge multi-track audio
-    },
-    progress_callback=progress_callback
+    fillers=True,
+    stutters=True,
+    long_silences=True,
+    mouth_sounds=True,
+    breath=True,
+    remove_noise=True,
+    normalize=True,
+    studio_sound=True,
+    mute_lufs=-80,
+    target_lufs=-16,
+    export_format="wav",
+    summarize=True,
+    social_content=True,
+    progress_callback=progress_callback,
+    output_path="enhanced_audio.wav",
 )
 
-# Access results
-print(result.audio.url)           # Download URL
-print(result.audio.statistics)    # Processing stats
-print(result.transcript.text)     # Full transcript
-print(result.transcript.summary)  # AI summary
+print(result.audio.url)            # Download URL
+print(result.audio.local_path)     # Local saved file
+print(result.audio.statistics)     # Processing stats
+print(result.transcript.text)      # Full transcript
+print(result.transcript.summary)   # AI summary
 ```
 
-### `create_edit(file_input, config)`
+### Processing In-Memory Audio
+
+If you already loaded audio with `librosa`, you can pass the returned `(audio_array, sample_rate)` tuple directly. The SDK writes a temporary WAV, uploads it, and continues normally.
+
+```python
+import librosa
+
+from cleanvoice import Cleanvoice
+
+client = Cleanvoice.from_env()
+
+audio, sample_rate = librosa.load("local_audio.wav", sr=None, mono=True)
+result = client.process(
+    (audio, sample_rate),
+    studio_sound=True,
+    remove_noise=True,
+    output_path="processed_from_array.mp3",
+)
+
+print(result.media.local_path)
+```
+
+### `create_edit(file_input, config=None, *, template_id=None, upload_type=None, **options)`
 
 Create an edit job without waiting for completion.
 
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+client = Cleanvoice.from_env()
 
-edit_id = cv.create_edit(
+edit_id = client.create_edit(
     "https://example.com/audio.mp3",
-    {'fillers': True, 'normalize': True}
+    fillers=True,
+    normalize=True,
+    studio_sound=True,
+    upload_type="podcast",
 )
 
 print(f'Edit ID: {edit_id}')
+```
+
+## File Upload and Download
+
+### Upload Local Files
+
+Upload local audio/video files for processing:
+
+```python
+import librosa
+
+from cleanvoice import Cleanvoice
+
+client = Cleanvoice.from_env()
+
+# Upload a file and get its URL
+uploaded_url = client.upload_file("local_audio.mp3")
+print(f"Uploaded to: {uploaded_url}")
+
+# Upload with custom filename
+uploaded_url = client.upload_file("local_audio.mp3", "my_custom_name.mp3")
+
+# Process local file directly. The SDK uploads it automatically.
+result = client.process("local_audio.mp3", fillers=True)
+
+# Upload an in-memory array loaded with librosa.
+audio, sample_rate = librosa.load("local_audio.wav", sr=None, mono=True)
+uploaded_url = client.upload_file((audio, sample_rate), "from_array.wav")
+```
+
+### Download Processed Files
+
+Download the enhanced audio files:
+
+```python
+# Download later from the result object
+downloaded_path = result.audio.download("enhanced_audio.mp3")
+print(f"Downloaded later to: {downloaded_path}")
+
+# Download and get back (audio_array, sample_rate)
+audio_array, sample_rate = result.download_audio(as_numpy=True)
+print(audio_array.shape, sample_rate)
+
+# Or let process handle the download inside the task
+result = client.process(
+    "audio.mp3",
+    fillers=True,
+    normalize=True,
+    output_path="output.mp3",
+)
+print(f"Processed and saved to: {result.audio.local_path}")
+
+# Process and download in one step
+result, downloaded_path = client.process_and_download(
+    "audio.mp3",
+    "output.mp3",
+    fillers=True,
+    normalize=True,
+)
+print(f"Processed and saved to: {downloaded_path}")
+```
+
+`output_path` always saves the exact bytes returned by the API. The SDK does not transcode locally after download.
+
+`result.download_audio(as_numpy=True)` and `await result.download_audio_async(as_numpy=True)` are available for audio results when you want the downloaded file loaded back into a NumPy array at the file's original sample rate.
+
+### Manual Scenario Runner
+
+For an end-to-end local verification that uploads, waits, downloads, and writes JSON summaries into `results_test/`, run:
+
+```bash
+CLEANVOICE_API_KEY=your-api-key python examples/manual_test_showcase.py
+```
+
+You can target specific recipes with repeated `--scenario` flags such as `audio_studio_sound_only`, `audio_all_inclusive`, `video_defaults`, or `video_all_inclusive`.
+
+### Complete Workflow
+
+```python
+from cleanvoice import Cleanvoice
+
+client = Cleanvoice.from_env()
+
+# Upload, process, and download in one line
+result, output_file = client.process_and_download(
+    "input_audio.mp3",     # Local file (automatically uploaded)
+    "enhanced_output.mp3", # Output filename  
+    fillers=True,
+    normalize=True,
+    summarize=True,
+)
 ```
 
 ### `get_edit(edit_id)`
@@ -151,9 +303,9 @@ Get the status and results of an edit job.
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+client = Cleanvoice.from_env()
 
-edit = cv.get_edit(edit_id)
+edit = client.get_edit(edit_id)
 
 if edit.status == 'SUCCESS':
     print(f'Download URL: {edit.result.download_url}')
@@ -168,15 +320,41 @@ Verify API authentication and get account information.
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+client = Cleanvoice.from_env()
 
-account = cv.check_auth()
+account = client.check_auth()
 print('Account info:', account)
 ```
 
-## File Handling Without FFmpeg
+Returns a typed mapping with common fields such as `user`, `account_type`, and `credits_remaining`, while preserving any extra account data returned by the API.
 
-The SDK includes built-in support for audio and video files using PyAV without requiring FFmpeg:
+## Async Support
+
+Use `AsyncCleanvoice` for async applications:
+
+```python
+import asyncio
+
+from cleanvoice import AsyncCleanvoice
+
+
+async def main():
+    async with AsyncCleanvoice.from_env() as client:
+        result = await client.process(
+            "https://example.com/audio.mp3",
+            normalize=True,
+            studio_sound=True,
+            output_path="async_output.wav",
+        )
+        print(result.audio.local_path)
+
+
+asyncio.run(main())
+```
+
+## Local Media Utilities
+
+The SDK includes local audio/video helper utilities. These helpers do not require FFmpeg.
 
 ### Audio File Information
 
@@ -224,11 +402,11 @@ print(f"Extracted audio: {audio_path}")
 | `long_silences` | bool | False | Remove long silences |
 | `mouth_sounds` | bool | False | Remove mouth sounds |
 | `hesitations` | bool | False | Remove hesitations |
-| `breath` | bool | False | Reduce breath sounds |
+| `breath` | bool or str | False | Reduce breath sounds |
 | `remove_noise` | bool | True | Remove background noise |
 | `keep_music` | bool | False | Preserve music sections |
 | `normalize` | bool | False | Normalize audio levels |
-| `sound_studio` | bool | False | AI-powered enhancement |
+| `studio_sound` | bool or str | False | AI-powered enhancement |
 
 ### Output Options
 
@@ -244,8 +422,8 @@ print(f"Extracted audio: {audio_path}")
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `transcription` | bool | False | Generate speech-to-text |
-| `summarize` | bool | False | Generate AI summary (requires transcription) |
-| `social_content` | bool | False | Optimize for social media (requires summarize) |
+| `summarize` | bool | False | Generate AI summary. The SDK auto-enables transcription. |
+| `social_content` | bool | False | Optimize for social media. The SDK auto-enables summarize. |
 
 ### Other Options
 
@@ -262,16 +440,14 @@ print(f"Extracted audio: {audio_path}")
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+cv = Cleanvoice.from_env()
 
 result = cv.process(
     "https://example.com/podcast.mp3",
-    {
-        'fillers': True,
-        'long_silences': True,
-        'normalize': True,
-        'remove_noise': True
-    }
+    fillers=True,
+    long_silences=True,
+    normalize=True,
+    remove_noise=True,
 )
 
 print(f"Cleaned audio: {result.audio.url}")
@@ -283,15 +459,12 @@ print(f"Removed {result.audio.statistics.FILLER_SOUND} filler sounds")
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+cv = Cleanvoice.from_env()
 
 result = cv.process(
     "https://example.com/interview.wav",
-    {
-        'transcription': True,
-        'summarize': True,
-        'normalize': True
-    }
+    summarize=True,
+    normalize=True,
 )
 
 print('Title:', result.transcript.title)
@@ -304,20 +477,22 @@ print('Chapters:', result.transcript.chapters)
 ```python
 from cleanvoice import Cleanvoice
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+cv = Cleanvoice.from_env()
 
 result = cv.process(
     "https://example.com/video.mp4",
-    {
-        'video': True,  # Optional: auto-detected
-        'fillers': True,
-        'transcription': True,
-        'export_format': 'mp3'
-    }
+    studio_sound=True,
+    remove_noise=True,
+    transcription=True,
+    output_path='processed_video.mp4',
 )
 
-print('Processed audio:', result.audio.url)
+print('Returned media type:', 'video' if result.is_video else 'audio')
+print('Processed file:', result.media.url)
+print('Saved locally:', result.media.local_path)
 ```
+
+When the SDK sees a video extension such as `.mp4`, it auto-forces `video=True` and emits a warning so callers know the returned asset will stay a video file.
 
 ### Batch Processing
 
@@ -325,7 +500,7 @@ print('Processed audio:', result.audio.url)
 from cleanvoice import Cleanvoice
 import time
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+cv = Cleanvoice.from_env()
 
 files = [
     "https://example.com/episode1.mp3",
@@ -335,7 +510,7 @@ files = [
 
 edit_ids = []
 for file in files:
-    edit_id = cv.create_edit(file, {'fillers': True, 'normalize': True})
+    edit_id = cv.create_edit(file, fillers=True, normalize=True)
     edit_ids.append(edit_id)
 
 # Poll for completion
@@ -360,12 +535,13 @@ print(f'All processing completed: {len(results)} files')
 ```python
 from cleanvoice import Cleanvoice, ApiError, FileValidationError
 
-cv = Cleanvoice({'api_key': 'your-api-key'})
+cv = Cleanvoice.from_env()
 
 try:
     result = cv.process(
         "https://example.com/audio.mp3",
-        {'fillers': True, 'normalize': True}
+        fillers=True,
+        normalize=True,
     )
     print('Success:', result.audio.url)
 except ApiError as e:
@@ -400,7 +576,7 @@ except Exception as e:
 ## Requirements
 
 - Python 3.8+
-- No FFmpeg required for basic audio/video processing
+- FFmpeg is not required for the SDK's local media helper utilities
 
 ## Development
 
@@ -409,7 +585,7 @@ except Exception as e:
 ```bash
 git clone https://github.com/cleanvoice/cleanvoice-python-sdk
 cd cleanvoice-python-sdk
-pip install -e .[dev]
+pip install -e .
 ```
 
 ### Running Tests

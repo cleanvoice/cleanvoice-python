@@ -4,12 +4,13 @@ Official Python SDK for Cleanvoice AI - AI-powered audio processing
 Example:
     from cleanvoice import Cleanvoice
 
-    cv = Cleanvoice({'api_key': 'your-api-key'})
-    result = cv.process('https://example.com/audio.mp3', {'fillers': True})
+    cv = Cleanvoice(api_key='your-api-key')
+    result = cv.process('https://example.com/audio.mp3', fillers=True)
 """
 
-from .cleanvoice import Cleanvoice
+from .cleanvoice import AsyncCleanvoice, Cleanvoice
 from .file_handler import (
+    download_file,
     extract_audio_from_video,
     get_audio_info,
     get_file_info,
@@ -18,8 +19,10 @@ from .file_handler import (
     is_valid_audio_file,
     is_valid_media_file,
     is_valid_video_file,
+    upload_local_file,
 )
 from .types import (
+    AccountInfo,
     ApiError,
     AudioInfo,
     Chapter,
@@ -40,10 +43,11 @@ from .types import (
     VideoInfo,
 )
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __all__ = [
     # Main class
     "Cleanvoice",
+    "AsyncCleanvoice",
     # Configuration types
     "CleanvoiceConfig",
     "ProcessingConfig",
@@ -52,6 +56,7 @@ __all__ = [
     "EditResult",
     "RetrieveEditResponse",
     # Status and data types
+    "AccountInfo",
     "EditStatus",
     "EditStatistics",
     "Chapter",
@@ -74,5 +79,7 @@ __all__ = [
     "get_audio_info",
     "get_video_info",
     "get_file_info",
+    "download_file",
     "extract_audio_from_video",
+    "upload_local_file",
 ]
