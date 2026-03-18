@@ -89,7 +89,11 @@ class CreateEditResponse(BaseModel):
 EditStatus = Literal[
     "FAILURE",
     "PENDING",
+    "PREPROCESSING",
+    "CLASSIFICATION",
+    "EDITING",
     "POSTPROCESSING",
+    "EXPORT",
     "PROCESSING",
     "QUEUED",
     "RETRY",

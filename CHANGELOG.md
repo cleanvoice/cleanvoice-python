@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-03-12
+## [2.0.2] - 2026-03-18
+
+### Fixed
+- Accepted additional backend worker phase statuses such as `PREPROCESSING`, `CLASSIFICATION`, `EDITING`, and `EXPORT` when polling `GET /edits/{id}`.
+- Prevented `RetrieveEditResponse` validation failures during `process()`, `get_edit()`, and `process_and_download()` when the API returns intermediate worker states.
+
+### Testing
+- Added regression coverage for polling through backend phase statuses before `SUCCESS`.
+- Verified the hotfix against the live API with local test media, including cases that surfaced `CLASSIFICATION` and `EDITING`.
+
+## [2.0.1] - 2026-03-12
 
 ### Added
 - `AsyncCleanvoice` and `AsyncApiClient` for async processing and polling.
@@ -21,7 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SDK result models now mirror the v2 API and `worker_new` output shape more closely, including summary/social/waveform metadata.
 - Transport retries and polling are more resilient to brief backend restarts and transient failures.
 - Local media support is now part of the base `cleanvoice-sdk` install.
-- Package metadata, public version exports, and HTTP user agent now report `2.0.0`.
+- Package metadata, public version exports, and HTTP user agent now report `2.0.1`.
+- README and release packaging were refreshed before publishing the `2.0.1` artifacts.
 
 ## [1.0.1] - 2024-12-26
 

@@ -43,7 +43,7 @@ from .types import (
     VideoInfo,
 )
 
-__version__ = "2.0.0"
+__version__ = "2.0.2"
 __all__ = [
     # Main class
     "Cleanvoice",
