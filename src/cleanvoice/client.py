@@ -21,7 +21,7 @@ from .types import (
 
 DEFAULT_V2_BASE_URL = "https://api.cleanvoice.ai/v2"
 DEFAULT_V1_BASE_URL = "https://api.cleanvoice.ai/v1"
-USER_AGENT = "cleanvoice-python-sdk/2.0.2"
+USER_AGENT = "cleanvoice-python-sdk/2.0.3"
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 NON_IDEMPOTENT_RETRYABLE_STATUS_CODES = frozenset({429, 503, 504})

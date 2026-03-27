@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-03-27
+
+### Changed
+- Bumped package metadata, the exported SDK version, and the HTTP user agent to `2.0.3`.
+
 ## [2.0.2] - 2026-03-18
 
 ### Fixed
