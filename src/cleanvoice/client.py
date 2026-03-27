@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import random
 import time
 from typing import Any, AsyncIterator, Dict, Optional, Tuple
@@ -353,9 +354,11 @@ class AsyncApiClient:
     async def upload_file(self, file_path: str, signed_url: str) -> None:
         """Upload file content to the signed URL."""
         try:
+            file_size = os.path.getsize(file_path)
             response = await self.session.put(
                 signed_url,
                 content=_iter_file_chunks(file_path),
+                headers={"Content-Length": str(file_size)},
                 timeout=300,
             )
             response.raise_for_status()
