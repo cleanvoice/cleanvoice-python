@@ -133,6 +133,16 @@ class Summarization(BaseModel):
     episode_description: str
 
 
+class SocialContent(BaseModel):
+    """Social content generated from the processed audio."""
+
+    model_config = ConfigDict(extra="allow")
+
+    newsletter: Optional[str] = None
+    twitter_thread: Optional[str] = None
+    linkedin: Optional[str] = None
+
+
 class TranscriptionWord(BaseModel):
     """Word-level transcription data."""
 
@@ -182,7 +192,7 @@ class EditResult(BaseModel):
     download_url: str
     summarization: Optional[Union[Summarization, List]] = None
     transcription: Optional[Union[Transcription, List]] = None
-    social_content: List[Any] = Field(default_factory=list)
+    social_content: Union[SocialContent, List[Any]] = Field(default_factory=list)
     merged_audio_url: Any = Field(default_factory=list)
     timestamps_markers_urls: Optional[Union[Dict[str, str], List[str]]] = None
     waveform_result: Any = None
@@ -279,7 +289,7 @@ class ProcessResult(BaseModel):
     video: bool = False
     transcript: Optional[TranscriptResult] = None
     summarization: Optional[Summarization] = None
-    social_content: List[Any] = Field(default_factory=list)
+    social_content: Union[SocialContent, List[Any]] = Field(default_factory=list)
     timestamps_markers_urls: Optional[Union[Dict[str, str], List[str]]] = None
     waveform_result: Any = None
     task_id: Optional[str] = None
