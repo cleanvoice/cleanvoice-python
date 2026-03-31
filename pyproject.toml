@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cleanvoice-sdk"
-version = "2.0.3"
+version = "2.0.4"
 description = "Official Python SDK for Cleanvoice AI audio processing"
 readme = "README.md"
 license = "MIT"

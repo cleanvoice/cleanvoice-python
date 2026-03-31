@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-03-31
+
+### Changed
+- `social_content`: types allow `SocialContent` or `[]` (`ProcessResult`, `EditResult`).
+
 ## [2.0.3] - 2026-03-27
 
 ### Changed
