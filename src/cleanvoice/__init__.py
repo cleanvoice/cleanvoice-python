@@ -27,6 +27,7 @@ from .types import (
     AudioInfo,
     Chapter,
     CleanvoiceConfig,
+    CreditInfo,
     DetailedTranscription,
     EditResult,
     EditStatistics,
@@ -43,7 +44,7 @@ from .types import (
     VideoInfo,
 )
 
-__version__ = "2.0.4"
+__version__ = "2.0.5"
 __all__ = [
     # Main class
     "Cleanvoice",
@@ -57,6 +58,7 @@ __all__ = [
     "RetrieveEditResponse",
     # Status and data types
     "AccountInfo",
+    "CreditInfo",
     "EditStatus",
     "EditStatistics",
     "Chapter",

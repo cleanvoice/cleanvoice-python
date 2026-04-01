@@ -118,8 +118,12 @@ class _CleanvoiceBase:
         if processing_config.summarize:
             processing_config.transcription = True
 
-        detected_video_input = isinstance(file_input, str) and is_valid_video_file(
-            file_input
+        normalized_file_input: Optional[str] = None
+        if isinstance(file_input, (str, os.PathLike)):
+            normalized_file_input = os.fspath(file_input)
+
+        detected_video_input = bool(
+            normalized_file_input and is_valid_video_file(normalized_file_input)
         )
         if detected_video_input:
             if processing_config.video is False:

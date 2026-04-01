@@ -33,6 +33,13 @@ AUDIO_EXTENSIONS = {
     ".wma",
 }
 
+UPLOADABLE_AUDIO_EXTENSIONS = {
+    ".mp3",
+    ".wav",
+    ".flac",
+    ".m4a",
+}
+
 VIDEO_EXTENSIONS = {
     ".mp4",
     ".avi",
@@ -49,8 +56,10 @@ VIDEO_EXTENSIONS = {
     ".rmvb",
 }
 
+SAFE_REMOTE_SCHEMES = {"http", "https"}
+
 ArrayWithSampleRate = Tuple[Any, int]
-MediaInput = Union[str, ArrayWithSampleRate]
+MediaInput = Union[str, os.PathLike[str], ArrayWithSampleRate]
 AudioArrayResult = Tuple[Any, int]
 BASE_INSTALL = "pip install cleanvoice-sdk"
 
@@ -114,6 +123,14 @@ def is_url(file_path: str) -> bool:
         return False
 
 
+def is_http_url(file_path: str) -> bool:
+    """Check whether a URL uses a scheme supported by execution paths."""
+    if not is_url(file_path):
+        return False
+    parsed = urlparse(file_path)
+    return parsed.scheme.lower() in SAFE_REMOTE_SCHEMES
+
+
 def is_valid_audio_file(file_path: str) -> bool:
     """Check if file path has a valid audio extension."""
     if is_url(file_path):
@@ -139,6 +156,12 @@ def is_valid_video_file(file_path: str) -> bool:
 def is_valid_media_file(file_path: str) -> bool:
     """Check if file path has a valid audio or video extension."""
     return is_valid_audio_file(file_path) or is_valid_video_file(file_path)
+
+
+def is_valid_uploadable_media_file(file_path: str) -> bool:
+    """Check whether a local file format can be uploaded through the API."""
+    path_ext = Path(file_path).suffix.lower()
+    return path_ext in UPLOADABLE_AUDIO_EXTENSIONS or path_ext in VIDEO_EXTENSIONS
 
 
 def _looks_like_audio_array(value: Any) -> bool:
@@ -244,6 +267,19 @@ def _resolve_download_destination(
     return filename or default_filename
 
 
+def _prepare_download_paths(destination: str) -> Tuple[Path, str]:
+    """Create a temporary sibling file used for safe atomic downloads."""
+    destination_path = Path(destination)
+    temp_handle = tempfile.NamedTemporaryFile(
+        delete=False,
+        dir=str(destination_path.parent or Path(".")),
+        prefix=f".{destination_path.name}.",
+        suffix=".tmp",
+    )
+    temp_handle.close()
+    return destination_path, temp_handle.name
+
+
 def signed_url_to_public_url(signed_url: str) -> str:
     """Strip query params from a signed upload URL."""
     parsed = urlparse(signed_url)
@@ -252,23 +288,26 @@ def signed_url_to_public_url(signed_url: str) -> str:
 
 def download_file(url: str, destination: Optional[str] = None) -> str:
     """Download a file from URL to local filesystem."""
-    if not is_url(url):
+    if not is_http_url(url):
         raise FileValidationError(f"Invalid URL: {url}")
 
     destination = _resolve_download_destination(url, destination)
+    temp_path = None
 
     try:
+        destination_path, temp_path = _prepare_download_paths(destination)
         response = requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
 
-        with open(destination, "wb") as f:
+        with open(temp_path, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        return destination
-    except requests.RequestException as e:
-        if os.path.exists(destination):
-            os.unlink(destination)
+        os.replace(temp_path, destination_path)
+        return str(destination_path)
+    except (requests.RequestException, OSError) as e:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
         raise FileValidationError(f"Failed to download file: {e}")
 
 
@@ -294,22 +333,25 @@ def load_audio_array(file_path: str) -> AudioArrayResult:
 
 async def download_file_async(url: str, destination: Optional[str] = None) -> str:
     """Asynchronously download a file from URL to local filesystem."""
-    if not is_url(url):
+    if not is_http_url(url):
         raise FileValidationError(f"Invalid URL: {url}")
 
     destination = _resolve_download_destination(url, destination)
+    destination_path, temp_path = _prepare_download_paths(destination)
 
     try:
+        destination_path, temp_path = _prepare_download_paths(destination)
         async with httpx.AsyncClient() as client:
             async with client.stream("GET", url, timeout=300) as response:
                 response.raise_for_status()
-                with open(destination, "wb") as file_handle:
+                with open(temp_path, "wb") as file_handle:
                     async for chunk in response.aiter_bytes(chunk_size=8192):
                         await asyncio.to_thread(file_handle.write, chunk)
-        return destination
-    except httpx.RequestError as error:
-        if os.path.exists(destination):
-            os.unlink(destination)
+        os.replace(temp_path, destination_path)
+        return str(destination_path)
+    except (httpx.HTTPError, OSError) as error:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
         raise FileValidationError(f"Failed to download file: {error}")
 
 
@@ -518,6 +560,10 @@ def normalize_file_input(file_input: MediaInput, api_client=None) -> str:
         raise FileValidationError("File input cannot be empty")
 
     if is_url(file_input):
+        if not is_http_url(file_input):
+            raise FileValidationError(
+                f"Only http and https URLs are supported: {file_input}"
+            )
         # Validate URL points to a media file
         if not is_valid_media_file(file_input):
             raise FileValidationError(
@@ -563,6 +609,10 @@ async def normalize_file_input_async(file_input: MediaInput, api_client=None) ->
         raise FileValidationError("File input cannot be empty")
 
     if is_url(file_input):
+        if not is_http_url(file_input):
+            raise FileValidationError(
+                f"Only http and https URLs are supported: {file_input}"
+            )
         if not is_valid_media_file(file_input):
             raise FileValidationError(
                 f"URL does not point to a valid media file: {file_input}"
@@ -592,9 +642,9 @@ def upload_local_file(
         if not os.path.exists(resolved_file_path):
             raise FileValidationError(f"Local file not found: {resolved_file_path}")
 
-        if not is_valid_media_file(resolved_file_path):
+        if not is_valid_uploadable_media_file(resolved_file_path):
             raise FileValidationError(
-                f"File is not a valid media file: {resolved_file_path}"
+                f"File is not supported for upload: {resolved_file_path}"
             )
 
         default_upload_name = (
@@ -622,9 +672,9 @@ async def upload_local_file_async(
         if not os.path.exists(resolved_file_path):
             raise FileValidationError(f"Local file not found: {resolved_file_path}")
 
-        if not is_valid_media_file(resolved_file_path):
+        if not is_valid_uploadable_media_file(resolved_file_path):
             raise FileValidationError(
-                f"File is not a valid media file: {resolved_file_path}"
+                f"File is not supported for upload: {resolved_file_path}"
             )
 
         default_upload_name = (

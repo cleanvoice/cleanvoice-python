@@ -6,9 +6,19 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing_extensions import TypedDict
 
 
+class CreditInfo(TypedDict, total=False):
+    """Credit balance fields returned by the v1 account endpoint."""
+
+    total: float
+    subscription: float
+    payg: float
+
+
 class AccountInfo(TypedDict, total=False):
     """Typed account payload returned by the authentication check."""
 
+    credit: CreditInfo
+    meta: Dict[str, Any]
     user: str
     account: Dict[str, Any]
     account_type: str
@@ -37,7 +47,9 @@ class ProcessingConfig(BaseModel):
     studio_sound: Optional[Union[bool, str]] = None
     mute_lufs: Optional[float] = None
     target_lufs: Optional[float] = None
-    export_format: Optional[Literal["auto", "mp3", "wav", "flac", "m4a"]] = None
+    export_format: Optional[
+        Literal["auto", "mp3", "wav", "flac", "m4a", "aac", "opus"]
+    ] = None
     transcription: Optional[bool] = None
     summarize: Optional[bool] = None
     social_content: Optional[bool] = None
@@ -132,6 +144,14 @@ class Summarization(BaseModel):
     summary_of_summary: str
     episode_description: str
 
+    @field_validator("summaries", mode="before")
+    @classmethod
+    def normalize_summaries(cls, value: Any) -> Any:
+        """Accept backend fallback payloads that serialize summaries as an empty string."""
+        if value in (None, ""):
+            return []
+        return value
+
 
 class SocialContent(BaseModel):
     """Social content generated from the processed audio."""
@@ -197,21 +217,26 @@ class EditResult(BaseModel):
     timestamps_markers_urls: Optional[Union[Dict[str, str], List[str]]] = None
     waveform_result: Any = None
 
-    @field_validator('summarization', mode='before')
+    @field_validator("summarization", mode="before")
     @classmethod
-    def validate_summarization(cls, v):
+    def validate_summarization(cls, value: Any) -> Any:
         """Convert empty list to None for summarization field."""
-        if v == []:
+        if value in ([], "", None):
             return None
-        return v
+        if isinstance(value, dict):
+            normalized = dict(value)
+            if normalized.get("summaries") in (None, ""):
+                normalized["summaries"] = []
+            return normalized
+        return value
 
-    @field_validator('transcription', mode='before')
+    @field_validator("transcription", mode="before")
     @classmethod
-    def validate_transcription(cls, v):
+    def validate_transcription(cls, value: Any) -> Any:
         """Convert empty list to None for transcription field."""
-        if v == []:
+        if value in ([], "", None):
             return None
-        return v
+        return value
 
 
 class ProcessingProgress(BaseModel):
@@ -230,14 +255,14 @@ class RetrieveEditResponse(BaseModel):
     """Response from retrieving an edit."""
 
     status: EditStatus
-    result: Optional[Union[ProcessingProgress, EditResult]] = None
-    task_id: str
+    result: Optional[Union[ProcessingProgress, EditResult, Dict[str, Any]]] = None
+    task_id: Optional[str] = None
 
     @field_validator("result", mode="before")
     @classmethod
     def normalize_empty_result(cls, value: Any) -> Any:
         """Treat empty API payloads as missing progress/result data."""
-        if value == {}:
+        if value in ({}, [], ""):
             return None
         return value
 

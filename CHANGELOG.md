@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-04-01
+
+### Fixed
+- Error messages now keep backend `message` and `code` values when the API sends nested error objects.
+- Result parsing now handles more real backend payloads, including failure dicts and empty summary fallback values.
+- Async upload and download errors now raise SDK exceptions the same way sync calls do.
+- Downloads now use a temp file and only replace the final file on success.
+- Video auto-detection now works for `pathlib.Path` and other `os.PathLike` inputs.
+- Upload filenames are URL-encoded before the SDK asks for a signed upload URL.
+- Remote URLs are limited to `http` and `https`, and local upload validation now matches the API.
+
+### Changed
+- `check_auth()` now documents and types the current `/v1/account` response shape (`credit` and `meta`).
+- `ProcessingConfig.export_format` now accepts `aac` and `opus`.
+
 ## [2.0.4] - 2026-03-31
 
 ### Changed

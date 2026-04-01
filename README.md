@@ -74,6 +74,15 @@ from cleanvoice import Cleanvoice
 client = Cleanvoice.from_env()
 ```
 
+`check_auth()` mirrors the current API response shape:
+
+```python
+account = client.check_auth()
+print(account["credit"]["total"])
+print(account["credit"]["subscription"])
+print(account["meta"])
+```
+
 **Option B — explicit constructor**
 
 ```python
@@ -299,6 +308,8 @@ url = client.upload_file((audio, sr), "from_array.wav")
 result = client.process("local_audio.mp3", fillers=True)
 ```
 
+Local uploads currently support the same formats as the API upload endpoint: `.mp3`, `.wav`, `.flac`, `.m4a`, plus the supported video formats.
+
 ### Download
 
 ```python
@@ -342,6 +353,8 @@ client.process(
 )
 # Returns: ProcessResult
 ```
+
+Remote media inputs for `process()` and `create_edit()` must use `http://` or `https://` URLs.
 
 With a progress callback:
 
@@ -402,11 +415,12 @@ Verify credentials and inspect account details.
 
 ```python
 account = client.check_auth()
-print(account.user)
-print(account.credits_remaining)
+print(account["credit"]["total"])
+print(account["credit"]["payg"])
+print(account["meta"])
 ```
 
-Returns a typed mapping with `user`, `account_type`, `credits_remaining`, plus any additional fields returned by the API.
+Returns the current `/v1/account` payload, including `credit.total`, `credit.payg`, `credit.subscription`, and `meta`.
 
 ---
 
@@ -508,6 +522,8 @@ except ApiError as e:
 except Exception as e:
     print(f"Unexpected error: {e}")
 ```
+
+Async uploads/downloads raise the same SDK exceptions as sync flows: `ApiError` for API/upload failures and `FileValidationError` for local file validation/download issues.
 
 ---
 

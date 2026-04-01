@@ -6,6 +6,7 @@ import os
 import random
 import time
 from typing import Any, AsyncIterator, Dict, Optional, Tuple
+from urllib.parse import quote
 
 import httpx
 import requests
@@ -21,7 +22,7 @@ from .types import (
 
 DEFAULT_V2_BASE_URL = "https://api.cleanvoice.ai/v2"
 DEFAULT_V1_BASE_URL = "https://api.cleanvoice.ai/v1"
-USER_AGENT = "cleanvoice-python-sdk/2.0.3"
+USER_AGENT = "cleanvoice-python-sdk/2.0.5"
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 NON_IDEMPOTENT_RETRYABLE_STATUS_CODES = frozenset({429, 503, 504})
@@ -45,9 +46,24 @@ def _extract_error_details(
     status_code: int, response_body: Any, response_text: str
 ) -> Tuple[str, Optional[str]]:
     if isinstance(response_body, dict):
-        return response_body.get("message", f"HTTP {status_code}"), response_body.get(
-            "code"
+        error_payload = response_body
+        if isinstance(response_body.get("error"), dict):
+            error_payload = response_body["error"]
+        elif isinstance(response_body.get("detail"), dict):
+            detail = response_body["detail"]
+            if isinstance(detail.get("error"), dict):
+                error_payload = detail["error"]
+            else:
+                error_payload = detail
+
+        message = (
+            error_payload.get("message")
+            or response_body.get("message")
+            or response_body.get("detail")
+            or f"HTTP {status_code}"
         )
+        error_code = error_payload.get("code") or response_body.get("code")
+        return message, error_code
     return f"HTTP {status_code}: {response_text}", None
 
 
@@ -226,7 +242,7 @@ class ApiClient:
         """Get a signed URL for file upload."""
         response_data = self._make_request(
             method="POST",
-            endpoint=f"/upload?filename={filename}",
+            endpoint=f"/upload?filename={quote(filename, safe='')}",
         )
         return response_data["signedUrl"]
 
@@ -347,7 +363,7 @@ class AsyncApiClient:
         """Get a signed URL for file upload."""
         response_data = await self._make_request(
             method="POST",
-            endpoint=f"/upload?filename={filename}",
+            endpoint=f"/upload?filename={quote(filename, safe='')}",
         )
         return response_data["signedUrl"]
 
@@ -362,7 +378,7 @@ class AsyncApiClient:
                 timeout=300,
             )
             response.raise_for_status()
-        except httpx.RequestError as error:
+        except httpx.HTTPError as error:
             raise ApiError(f"File upload failed: {error}")
         except IOError as error:
             raise ApiError(f"Failed to read file: {error}")
